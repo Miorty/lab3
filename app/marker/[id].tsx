@@ -1,53 +1,156 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ImageList } from '../../components/ImageList';
-import { MarkerImage } from '../../types';
+import { Marker, MarkerImage } from '../../types';
+
+// Временное хранилище (потом через бд!!)
+let savedMarkers: Marker[] = [];
 
 export default function MarkerDetailsScreen() {
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams(); // ID из URL
   const router = useRouter();
-  const [images, setImages] = useState<MarkerImage[]>([]); // для хранения изображений
 
-  const pickImageAsync = async () => { //Пользователь нажимает "+" в ImageList, вызывается pickImageAsync()
+  const [marker, setMarker] = useState<Marker | null>(null);
+  const [images, setImages] = useState<MarkerImage[]>([]);
+  const [title, setTitle] = useState('');
+
+  
+  useEffect(() => {
+    loadMarkerData();
+  }, [id]);
+// Загрузка данных маркера
+  const loadMarkerData = () => {
+    const markerId = Array.isArray(id) ? id[0] : id;
+    const foundMarker = savedMarkers.find(m => m.id === markerId);
+    
+    if (foundMarker) { //
+      setMarker(foundMarker);
+      setTitle(foundMarker.title || '');
+      setImages(foundMarker.images || []);
+    } else {
+      // Если маркер не найден, создаем временный
+      const newMarker: Marker = {
+        id: markerId!,
+        latitude: 55.7558,
+        longitude: 37.6173,
+        title: `Маркер ${markerId}`,
+        description: 'Описание маркера',
+        createdAt: new Date(),
+        images: [],
+      };
+      setMarker(newMarker);
+      setTitle(newMarker.title || '');
+      // Сохраняем временный маркер
+      savedMarkers.push(newMarker);
+    }
+  };
+
+  const saveMarker = (updatedMarker: Marker) => {
+    const index = savedMarkers.findIndex(m => m.id === updatedMarker.id);
+    if (index >= 0) {
+      savedMarkers[index] = updatedMarker;
+    } else {
+      savedMarkers.push(updatedMarker);
+    }
+    console.log('Маркер сохранен:', updatedMarker);
+  };
+
+  //работа с картинкой
+  const pickImageAsync = async () => {
+    // разрешение ?
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Ошибка', 'Необходимо разршение для доступа к галерее');
+      return;
+    }
+
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
       quality: 1,
     });
 
-    if (!result.canceled) {
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const markerId = Array.isArray(id) ? id[0] : id;
       const newImage: MarkerImage = {
         id: Date.now().toString(),
-        markerId: id as string,
+        markerId: markerId!,
         uri: result.assets[0].uri,
         createdAt: new Date(),
       };
 
-      setImages(prev => [...prev, newImage]);
+      const updatedImages = [...images, newImage];
+      setImages(updatedImages);
+
+      // Сохраняем в маркер
+      if (marker) {
+        const updatedMarker: Marker = { 
+          ...marker, 
+          images: updatedImages 
+        };
+        setMarker(updatedMarker);
+        saveMarker(updatedMarker);
+      }
     } else {
       alert('Вы не выбрали изображение');
     }
   };
-//Удаление изображения
+
   const handleDeleteImage = (imageId: string) => {
-    setImages(prev => prev.filter(img => img.id !== imageId));
+    const updatedImages = images.filter(img => img.id !== imageId);
+    setImages(updatedImages);
+
+    // Обновляем маркер
+    if (marker) {
+      const updatedMarker: Marker = { 
+        ...marker, 
+        images: updatedImages 
+      };
+      setMarker(updatedMarker);
+      saveMarker(updatedMarker);
+    }
   };
+
+  const handleTitleChange = (newTitle: string) => {
+    setTitle(newTitle);
+    if (marker) {
+      const updatedMarker: Marker = { 
+        ...marker, 
+        title: newTitle 
+      };
+      setMarker(updatedMarker);
+      saveMarker(updatedMarker);
+    }
+  };
+
+  if (!marker) {
+    return (
+      <View style={styles.container}>
+        <Text>Загрузка...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TextInput
           style={styles.title}
-          defaultValue={`Маркер ${id}`}
+          value={title}
+          onChangeText={handleTitleChange}
+          placeholder="Название маркера"
         />
         <Text style={styles.coordinates}>
-          55.7558, 37.6173
+          {marker.latitude.toFixed(4)}, {marker.longitude.toFixed(4)}
+        </Text>
+        <Text style={styles.date}>
+          Создан: {marker.createdAt.toLocaleDateString()}
         </Text>
       </View>
 
-      <ImageList //React автоматически перерисовывает компонент
+      <ImageList
         images={images}
         onAddImage={pickImageAsync}
         onDeleteImage={handleDeleteImage}
@@ -83,6 +186,11 @@ const styles = StyleSheet.create({
   coordinates: {
     fontSize: 16,
     color: '#666',
+    marginBottom: 4,
+  },
+  date: {
+    fontSize: 14,
+    color: '#999',
   },
   buttonContainer: {
     padding: 16,

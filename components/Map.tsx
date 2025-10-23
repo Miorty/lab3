@@ -22,7 +22,7 @@ export const Map: React.FC<MapProps> = ({
 
   const handleMapLongPress = (event: any) => {
     const { coordinate } = event.nativeEvent;
-    onMapLongPress(coordinate.latitude, coordinate.longitude);
+    onMapLongPress(coordinate.latitude, coordinate.longitude); //Вызывает колбэк из пропсов передавая координаты
   };
 
   const handleMarkerPress = (marker: Marker) => {

@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, } from 'react-native';
 import { MarkerImage } from '../types';
 
 interface ImageListProps {

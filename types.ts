@@ -5,6 +5,7 @@ export interface Marker {
   title?: string;
   description?: string;
   createdAt: Date;
+  images?: MarkerImage[]; //добавлерие массива изображений в маркер
 }
 
 export interface MarkerImage {
@@ -13,19 +14,19 @@ export interface MarkerImage {
   uri: string;
   createdAt: Date;
 }
-//Маршруты навигации
+
 export type RootStackParamList = {
-  index: undefined;                   // без параметров
+  index: undefined;
   'marker/[id]': { id: string };
 };
 
-export type ImagePickerError = {  //Попробовать. Обработка ошибки при выборе изображения
+export type ImagePickerError = {
   code: string;
   message: string;
   domain?: string;
 };
 
-export type NavigationError = { //Ошибка при навигации
+export type NavigationError = {
   message: string;
   stack?: string;
 };

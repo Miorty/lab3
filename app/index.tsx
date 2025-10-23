@@ -2,26 +2,50 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Map } from '../components/Map';
+import { MarkerList } from '../components/MarkerList';
 import { Marker } from '../types';
 
+// Массив для маркеров
+let savedMarkers: Marker[] = [];
+
 export default function MapScreen() {
-  const [markers, setMarkers] = useState<Marker[]>([]);
   const router = useRouter();
-// latitude - широта
+  const [markers, setMarkers] = useState<Marker[]>(savedMarkers);
+
   const handleMapLongPress = (latitude: number, longitude: number) => {
     const newMarker: Marker = {
-      id: Date.now().toString(),
-      latitude,
+      id: Date.now().toString(), // uuid&
+      latitude, // широта
       longitude,
-      title: `Маркер ${markers.length + 1}`,
+      title: `Маркер ${savedMarkers.length + 1}`,
+      description: 'Новый маркер',
       createdAt: new Date(),
+      images: [],
     };
 
-    setMarkers((prev) => [...prev, newMarker]); 
+    const updatedMarkers = [...markers, newMarker];
+    setMarkers(updatedMarkers);
+    savedMarkers = updatedMarkers;
+    
+    // Alert.alert(
+    //   'Маркер добавлен',
+    //   'Хотите перейти к редактированию маркера?',
+    //   [
+    //     { text: 'Позже', style: 'cancel' },
+    //     { text: 'Перейти', onPress: () => handleMarkerPress(newMarker) }
+    //   ]
+    // );
   };
 
-  const handleMarkerPress = (marker: Marker) => { // Переход на экран деталей маркера, просто жмак на маркер
+  //Переход на инф о маркере
+  const handleMarkerPress = (marker: Marker) => {
     router.push(`/marker/${marker.id}`);
+  };
+
+  const handleDeleteMarker = (markerId: string) => {
+    const updatedMarkers = markers.filter(marker => marker.id !== markerId);
+    setMarkers(updatedMarkers);
+    savedMarkers = updatedMarkers;
   };
 
   return (
@@ -30,6 +54,11 @@ export default function MapScreen() {
         markers={markers}
         onMapLongPress={handleMapLongPress}
         onMarkerPress={handleMarkerPress}
+      />
+      <MarkerList
+        markers={markers}
+        onMarkerPress={handleMarkerPress}
+        onDeleteMarker={handleDeleteMarker}
       />
     </View>
   );
