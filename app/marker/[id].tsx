@@ -1,48 +1,57 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ImageList } from '../../components/ImageList';
 import { Marker, MarkerImage } from '../../types';
 
-// Временное хранилище (потом через бд!!)
 let savedMarkers: Marker[] = [];
 
 export default function MarkerDetailsScreen() {
-  const { id } = useLocalSearchParams(); // ID из URL
+
+  const { 
+    id, 
+    latitude, 
+    longitude, 
+    title, 
+    description, 
+    createdAt
+  } = useLocalSearchParams();
+  
   const router = useRouter();
 
   const [marker, setMarker] = useState<Marker | null>(null);
   const [images, setImages] = useState<MarkerImage[]>([]);
-  const [title, setTitle] = useState('');
 
-  
   useEffect(() => {
     loadMarkerData();
-  }, [id]);
-// Загрузка данных маркера
+  }, [id, latitude, longitude, title, description, createdAt]);
+
   const loadMarkerData = () => {
     const markerId = Array.isArray(id) ? id[0] : id;
+    
+    const lat = latitude ? parseFloat(Array.isArray(latitude) ? latitude[0] : latitude) : 55.7558;
+    const lng = longitude ? parseFloat(Array.isArray(longitude) ? longitude[0] : longitude) : 37.6173;
+    const markerTitle = title ? (Array.isArray(title) ? title[0] : title) : 'Маркер';
+    //const markerDescription = description ? (Array.isArray(description) ? description[0] : description) : 'Описание маркера';
+    const createdDate = createdAt ? new Date(Array.isArray(createdAt) ? createdAt[0] : createdAt) : new Date();
+
     const foundMarker = savedMarkers.find(m => m.id === markerId);
     
-    if (foundMarker) { //
+    if (foundMarker) {
       setMarker(foundMarker);
-      setTitle(foundMarker.title || '');
       setImages(foundMarker.images || []);
     } else {
-      // Если маркер не найден, создаем временный
+      // Создаем новый маркер со ВСЕМИ параметрами из URL
       const newMarker: Marker = {
         id: markerId!,
-        latitude: 55.7558,
-        longitude: 37.6173,
-        title: `Маркер ${markerId}`,
-        description: 'Описание маркера',
-        createdAt: new Date(),
+        latitude: lat,
+        longitude: lng,
+        title: markerTitle,
+        createdAt: createdDate,
         images: [],
       };
       setMarker(newMarker);
-      setTitle(newMarker.title || '');
-      // Сохраняем временный маркер
       savedMarkers.push(newMarker);
     }
   };
@@ -57,12 +66,10 @@ export default function MarkerDetailsScreen() {
     console.log('Маркер сохранен:', updatedMarker);
   };
 
-  //работа с картинкой
   const pickImageAsync = async () => {
-    // разрешение ?
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Ошибка', 'Необходимо разршение для доступа к галерее');
+      Alert.alert('Ошибка', 'Необходимо разрешение для доступа к галерее');
       return;
     }
 
@@ -84,7 +91,6 @@ export default function MarkerDetailsScreen() {
       const updatedImages = [...images, newImage];
       setImages(updatedImages);
 
-      // Сохраняем в маркер
       if (marker) {
         const updatedMarker: Marker = { 
           ...marker, 
@@ -102,23 +108,10 @@ export default function MarkerDetailsScreen() {
     const updatedImages = images.filter(img => img.id !== imageId);
     setImages(updatedImages);
 
-    // Обновляем маркер
     if (marker) {
       const updatedMarker: Marker = { 
         ...marker, 
         images: updatedImages 
-      };
-      setMarker(updatedMarker);
-      saveMarker(updatedMarker);
-    }
-  };
-
-  const handleTitleChange = (newTitle: string) => {
-    setTitle(newTitle);
-    if (marker) {
-      const updatedMarker: Marker = { 
-        ...marker, 
-        title: newTitle 
       };
       setMarker(updatedMarker);
       saveMarker(updatedMarker);
@@ -136,17 +129,12 @@ export default function MarkerDetailsScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <TextInput
-          style={styles.title}
-          value={title}
-          onChangeText={handleTitleChange}
-          placeholder="Название маркера"
-        />
+        <Text style={styles.title}>{marker.title}</Text>
         <Text style={styles.coordinates}>
-          {marker.latitude.toFixed(4)}, {marker.longitude.toFixed(4)}
+          Координаты: {marker.latitude.toFixed(6)}, {marker.longitude.toFixed(6)}
         </Text>
         <Text style={styles.date}>
-          Создан: {marker.createdAt.toLocaleDateString()}
+          Создан: {marker.createdAt.toLocaleDateString()} в {marker.createdAt.toLocaleTimeString()}
         </Text>
       </View>
 
@@ -179,9 +167,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#007AFF',
-    paddingVertical: 4,
+    color: '#000',
+  },
+  description: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 8,
   },
   coordinates: {
     fontSize: 16,
@@ -191,6 +182,12 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 14,
     color: '#999',
+    marginBottom: 4,
+  },
+  imagesCount: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: 'bold',
   },
   buttonContainer: {
     padding: 16,

@@ -2,7 +2,7 @@ import React from 'react';
 import MapView, { Marker as MapMarker, Region } from 'react-native-maps';
 import { Marker } from '../types';
 
-interface MapProps {
+interface MapProps { //MapProps - определяет что компонент принимает
   markers: Marker[];
   onMapLongPress: (latitude: number, longitude: number) => void;
   onMarkerPress: (marker: Marker) => void;
@@ -43,7 +43,6 @@ export const Map: React.FC<MapProps> = ({
             longitude: marker.longitude,
           }}
           title={marker.title}
-          description={marker.description}
           onPress={() => handleMarkerPress(marker)}
         />
       ))}

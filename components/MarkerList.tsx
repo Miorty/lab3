@@ -24,9 +24,6 @@ export const MarkerList: React.FC<MarkerListProps> = ({
           {item.latitude.toFixed(4)}, 
           {item.longitude.toFixed(4)}
         </Text>
-        <Text style={styles.markerImages}>
-          Изображений: {item.images?.length || 0}
-        </Text>
       </View>
       <TouchableOpacity
         style={styles.deleteButton}
@@ -69,7 +66,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   list: {
-    maxHeight: 300,
+    maxHeight: 600,
   },
   markerItem: {
     flexDirection: 'row',
