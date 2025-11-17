@@ -20,9 +20,14 @@ export const MarkerList: React.FC<MarkerListProps> = ({
     >
       <View style={styles.markerInfo}>
         <Text style={styles.markerTitle}>{item.title}</Text>
+        <Text style={styles.markerDescription} numberOfLines={2}>
+          {item.description}
+        </Text>
         <Text style={styles.markerCoordinates}>
-          {item.latitude.toFixed(4)}, 
-          {item.longitude.toFixed(4)}
+          {item.latitude.toFixed(4)}, {item.longitude.toFixed(4)}
+        </Text>
+        <Text style={styles.markerImages}>
+          Изображений: {item.images?.length || 0}
         </Text>
       </View>
       <TouchableOpacity
@@ -83,14 +88,21 @@ const styles = StyleSheet.create({
   markerTitle: {
     fontSize: 16,
     fontWeight: 'bold',
+    marginBottom: 4,
   },
-  markerCoordinates: {
+  markerDescription: {
     fontSize: 14,
     color: '#666',
+    marginBottom: 4,
+  },
+  markerCoordinates: {
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 2,
   },
   markerImages: {
     fontSize: 12,
-    color: '#999',
+    color: '#007AFF',
   },
   deleteButton: {
     backgroundColor: '#FF3B30',
@@ -99,6 +111,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
+    marginLeft: 12,
   },
   deleteButtonText: {
     color: 'white',

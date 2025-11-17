@@ -1,21 +1,23 @@
 import { Stack } from 'expo-router';
+import { DatabaseProvider } from '../contexts/DatabaseContext';
 
 export default function RootLayout() {
   return (
-    <Stack>
-      <Stack.Screen //определяет каждый экран приложения
-        name="index"
-        options={{
-          title: 'Карта маркеров',
-        }}
-      />
-      <Stack.Screen
-        name="marker/[id]"
-        options={{
-          title: 'Детали маркера',
-        }}
-      />
-    </Stack>
+    <DatabaseProvider>
+      <Stack>
+        <Stack.Screen
+          name="index"
+          options={{
+            title: 'Карта маркеров',
+          }}
+        />
+        <Stack.Screen
+          name="marker/[id]"
+          options={{
+            title: 'Детали маркера',
+          }}
+        />
+      </Stack>
+    </DatabaseProvider>
   );
 }
-

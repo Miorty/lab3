@@ -1,58 +1,67 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Modal, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Map } from '../components/Map';
 import { MarkerList } from '../components/MarkerList';
-import { Marker } from '../types';
-
-// Временное хранилище маркеров
-let savedMarkers: Marker[] = [];
+import { useDatabase } from '../contexts/DatabaseContext';
 
 export default function MapScreen() {
   const router = useRouter();
-  const [markers, setMarkers] = useState<Marker[]>(savedMarkers);
+  const { markers, addMarker, deleteMarker, isLoading } = useDatabase();
   const [showMarkerList, setShowMarkerList] = useState(false);
 
-  const handleMapLongPress = (latitude: number, longitude: number) => {
-    const newMarker: Marker = {
-      id: Date.now().toString(),
-      latitude,
-      longitude,
-      title: `Маркер ${savedMarkers.length + 1}`,
-      createdAt: new Date(),
-      images: [],
-    };
+  const handleMapLongPress = async (latitude: number, longitude: number) => {
+    try {
+      console.log('Маркер с координатами:', latitude, longitude);
+      const markerId = await addMarker({
+        latitude,
+        longitude,
+        title: `Маркер ${markers.length + 1}`,
+        description: 'Описание маркера',
+        createdAt: new Date(),
+      });
 
-    const updatedMarkers = [...markers, newMarker];
-    setMarkers(updatedMarkers);
-    savedMarkers = updatedMarkers;
+      console.log('Создан новый маркер: ', markerId);
+      
+      router.push({
+        pathname: '/marker/[id]' as const,
+        params: { id: markerId }
+      });
+    } catch (error) {
+      console.error('Ошибка при создании: ', error);
+      Alert.alert('Ошибка', 'Не удалось создать маркер');
+    }
   };
 
-  const handleMarkerPress = (marker: Marker) => {
-    // Передаем ВСЕ параметры маркера, путь вида /marker/123456789?latitude=56.865868&longitude=307.65866173...
+  const handleMarkerPress = (marker: any) => {
     router.push({
       pathname: '/marker/[id]' as const,
-      params: {
-        id: marker.id,
-        latitude: marker.latitude.toString(),
-        longitude: marker.longitude.toString(),
-        title: marker.title || 'Маркер',
-        createdAt: marker.createdAt.toISOString(),
-        // Передаем количество изображений для отображения
-        //imagesCount: (marker.images?.length || 0).toString()
-      }
+      params: { id: marker.id }
     });
   };
 
-  const handleDeleteMarker = (markerId: string) => {
-    const updatedMarkers = markers.filter(marker => marker.id !== markerId);
-    setMarkers(updatedMarkers);
-    savedMarkers = updatedMarkers;
+  const handleDeleteMarker = async (markerId: string) => {
+    try {
+      await deleteMarker(markerId);
+      Alert.alert('Успех', 'Маркер удален');
+    } catch (error) {
+      console.error('Error deleting marker:', error);
+      Alert.alert('Ошибка', 'Не удалось удалить маркер');
+    }
   };
 
   const toggleMarkerList = () => {
     setShowMarkerList(!showMarkerList);
   };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Загрузка данных...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -71,6 +80,14 @@ export default function MapScreen() {
         </Text>
       </TouchableOpacity>
 
+      {markers.length === 0 && (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateText}>
+            Нажмите и удерживайте на карте, чтобы создать маркер
+          </Text>
+        </View>
+      )}
+
       <Modal
         visible={showMarkerList}
         animationType="slide"
@@ -79,7 +96,7 @@ export default function MapScreen() {
       >
         <View style={styles.fullScreenModal}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Сохраненные маркеры</Text>
+            <Text style={styles.modalTitle}>Сохраненные маркеры ({markers.length})</Text>
             <TouchableOpacity 
               style={styles.closeButton}
               onPress={toggleMarkerList}
@@ -102,11 +119,21 @@ export default function MapScreen() {
   );
 }
 
-// Стили остаются без изменений
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: 'relative',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
   },
   floatingButton: {
     position: 'absolute',
@@ -125,6 +152,21 @@ const styles = StyleSheet.create({
   buttonText: {
     color: 'white',
     fontWeight: 'bold',
+    fontSize: 14,
+  },
+  emptyState: {
+    position: 'absolute',
+    bottom: 100,
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    textAlign: 'center',
+    color: '#666',
     fontSize: 14,
   },
   fullScreenModal: {

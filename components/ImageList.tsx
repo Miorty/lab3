@@ -7,7 +7,7 @@ interface ImageListProps {
   onAddImage: () => void;
   onDeleteImage: (imageId: string) => void;
 }
-//const ImageList: (props: ImageListProps) => React.JSX.Element
+//const ImageList: (props: ImageListProps) => React.JSX.Element      от родительского компонента дочернему
 export const ImageList: React.FC<ImageListProps> = ({ //React.FC<ImageListProps> - тип компонента, 
                                                       //React.FC = Function Component (функциональный компонент)
   //извлечения значений из объекта props в отдельные переменные.
