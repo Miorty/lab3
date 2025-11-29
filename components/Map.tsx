@@ -1,17 +1,12 @@
 import React from 'react';
-import MapView, { Marker as MapMarker, Region } from 'react-native-maps';
-import { Marker } from '../types';
-
-interface MapProps { //MapProps - определяет что компонент принимает
-  markers: Marker[];
-  onMapLongPress: (latitude: number, longitude: number) => void;
-  onMarkerPress: (marker: Marker) => void;
-}
+import MapView, { Circle, Marker as MapMarker, Region } from 'react-native-maps';
+import { MapProps, Marker } from '../types';
 
 export const Map: React.FC<MapProps> = ({
   markers,
   onMapLongPress,
   onMarkerPress,
+  userLocation,
 }) => {
   const initialRegion: Region = {
     latitude: 58.010455,
@@ -22,7 +17,7 @@ export const Map: React.FC<MapProps> = ({
 
   const handleMapLongPress = (event: any) => {
     const { coordinate } = event.nativeEvent;
-    onMapLongPress(coordinate.latitude, coordinate.longitude); //Вызывает колбэк из пропсов передавая координаты
+    onMapLongPress(coordinate.latitude, coordinate.longitude);
   };
 
   const handleMarkerPress = (marker: Marker) => {
@@ -34,7 +29,22 @@ export const Map: React.FC<MapProps> = ({
       style={{ flex: 1 }}
       initialRegion={initialRegion}
       onLongPress={handleMapLongPress}
+      showsUserLocation={true}
+      showsMyLocationButton={true}
     >
+      {/* Отображаем текущее местоположение пользователя */}
+      {userLocation && (
+        <Circle
+          center={{
+            latitude: userLocation.coords.latitude,
+            longitude: userLocation.coords.longitude,
+          }}
+          radius={50}
+          strokeColor="rgba(0, 122, 255, 0.5)"
+          fillColor="rgba(0, 122, 255, 0.2)"
+        />
+      )}
+
       {markers.map((marker) => (
         <MapMarker
           key={marker.id}
@@ -43,6 +53,7 @@ export const Map: React.FC<MapProps> = ({
             longitude: marker.longitude,
           }}
           title={marker.title}
+          description={marker.description}
           onPress={() => handleMarkerPress(marker)}
         />
       ))}

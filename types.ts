@@ -1,3 +1,4 @@
+import * as Location from 'expo-location';
 export interface Marker {
   id: string;
   latitude: number;
@@ -38,18 +39,20 @@ export interface DatabaseContextType {
   isLoading: boolean;
 }
 
-// export interface MarkerDB {
-//   id: string;
-//   latitude: number;
-//   longitude: number;
-//   title: string;
-//   description: string;
-//   createdAt: string;
+export interface MapProps {
+  markers: Marker[];
+  onMapLongPress: (latitude: number, longitude: number) => void;
+  onMarkerPress: (marker: Marker) => void;
+  userLocation?: Location.LocationObject | null;
+}
+
+// export interface LocationConfig {
+//   accuracy: Location.LocationAccuracy;
+//   timeInterval: number; // Интервал обновления в мс
+//   distanceInterval: number; // Минимальное расстояние для обновления
 // }
 
-// export interface MarkerImageDB {
-//   id: string;
-//   markerId: string;
-//   uri: string;
-//   createdAt: string;
+// export interface LocationState {
+//   location: Location.LocationObject | null;
+//   errorMsg: string | null;
 // }

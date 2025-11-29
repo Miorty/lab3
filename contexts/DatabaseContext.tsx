@@ -9,14 +9,15 @@ import {
   updateMarker
 } from '../database/operations';
 import { initDatabase } from '../database/schema';
+import { notificationManager } from '../services/notifications';
 import { DatabaseContextType, Marker, MarkerImage } from '../types';
 
 const DatabaseContext = createContext<DatabaseContextType | undefined>(undefined);
 
 export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [markers, setMarkers] = useState<Marker[]>([]);
-  const [isLoading, setIsLoading] = useState(true);  // Флаг загрузки
-  const [database, setDatabase] = useState<SQLite.SQLiteDatabase | null>(null); //открытое соединение с БД
+  const [isLoading, setIsLoading] = useState(true);
+  const [database, setDatabase] = useState<SQLite.SQLiteDatabase | null>(null);
 
   useEffect(() => {
     initializeDatabase();
@@ -25,6 +26,9 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const initializeDatabase = async () => {
     try {
       console.log('Инициализация базы данных...');
+      
+      // Инициализируем уведомления
+      await notificationManager.initialize();
       
       const db = await initDatabase();
       setDatabase(db);
@@ -95,6 +99,9 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!database) throw new Error('База данных не инициализирована');
 
     try {
+      // Удаляем уведомления для этого маркера
+      //await notificationManager.removeNotification(markerId);
+      
       await deleteMarker(database, markerId);
       await loadAllData(database);
     } catch (error) {
@@ -148,7 +155,7 @@ export const DatabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       deleteImage: deleteImageHandler,
       isLoading
     }}>
-      {children} {/* <- Оборачивает дочерние компоненты */}
+      {children}
     </DatabaseContext.Provider>
   );
 };
@@ -158,5 +165,5 @@ export const useDatabase = () => {
   if (context === undefined) {
     throw new Error('useDatabase должна использоваться в рамках DatabaseProvider');
   }
-  return context; // <- Возвращает { markers, addMarker, updateMarker, ... }
+  return context;
 };

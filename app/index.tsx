@@ -1,14 +1,106 @@
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Map } from '../components/Map';
 import { MarkerList } from '../components/MarkerList';
 import { useDatabase } from '../contexts/DatabaseContext';
+import { calculateDistance, requestLocationPermissions, startLocationUpdates } from '../services/location';
+import { notificationManager } from '../services/notifications';
 
 export default function MapScreen() {
   const router = useRouter();
   const { markers, addMarker, deleteMarker, isLoading } = useDatabase();
   const [showMarkerList, setShowMarkerList] = useState(false);
+  const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  const [notificationPermission, setNotificationPermission] = useState<boolean>(false);  
+  const [showPermissionModal, setShowPermissionModal] = useState<boolean>(false); 
+
+  useEffect(() => {
+    initializeLocationTracking();
+    showPermissionRequest();
+  }, []);
+
+  const showPermissionRequest = () => {
+    setShowPermissionModal(true);
+  };
+
+  //уведомления
+  useEffect(() => {
+    if (userLocation && markers.length > 0) {
+      checkProximityToMarkers(userLocation, markers);
+    }
+  }, [userLocation, markers]);
+
+  const initializeLocationTracking = async () => {
+    try {
+      // Пытаемся получить доступ к геоданным из location
+      const hasPermission = await requestLocationPermissions();
+      if (!hasPermission) {
+        setLocationError('Доступ к местоположению не разрешён');
+        return;
+      }
+
+      await startLocationUpdates((location) => {
+        setUserLocation(location);
+        setLocationError(null);
+      });
+
+    } catch (error) {
+      console.error('Ошибка отслеживания местоположения:', error);
+      setLocationError('Не удалось начать отслеживание местоположения');
+    }
+  };
+
+  const checkProximityToMarkers = (
+    userLocation: Location.LocationObject,
+    markers: any[]
+  ) => {
+    if (!notificationPermission) {
+      return; // не показываем модальное окно
+    }
+
+    const threshold = notificationManager.getProximityThreshold();
+
+    markers.forEach(marker => {
+      const distance = calculateDistance(
+        userLocation.coords.latitude,
+        userLocation.coords.longitude,
+        marker.latitude,
+        marker.longitude
+      );
+
+      if (distance <= threshold) {
+        notificationManager.showNotification(marker);
+      } else {
+        notificationManager.removeNotification(marker.id);
+      }
+    });
+  };
+
+  // const checkProximityToMarkers = (
+  //   userLocation: Location.LocationObject,
+  //   markers: any[]
+  // ) => {
+  //   const threshold = notificationManager.getProximityThreshold(); 
+
+  //   markers.forEach(marker => {
+  //     const distance = calculateDistance(
+  //       userLocation.coords.latitude,
+  //       userLocation.coords.longitude,
+  //       marker.latitude,
+  //       marker.longitude
+  //     );
+
+  //     if (distance <= threshold) {
+  //       notificationManager.showNotification(marker);}
+  //     // } else {
+  //     //   notificationManager.removeNotification(marker.id);
+  //     // }
+  //   });
+  // };
 
   const handleMapLongPress = async (latitude: number, longitude: number) => {
     try {
@@ -22,7 +114,7 @@ export default function MapScreen() {
       });
 
       console.log('Создан новый маркер: ', markerId);
-      
+
       router.push({
         pathname: '/marker/[id]' as const,
         params: { id: markerId }
@@ -69,9 +161,25 @@ export default function MapScreen() {
         markers={markers}
         onMapLongPress={handleMapLongPress}
         onMarkerPress={handleMarkerPress}
+        userLocation={userLocation}
       />
-      
-      <TouchableOpacity 
+
+      {/* Статус местоположения */}
+      {locationError && (
+        <View style={styles.locationError}>
+          <Text style={styles.locationErrorText}>{locationError}</Text>
+        </View>
+      )}
+
+      {userLocation && (
+        <View style={styles.locationInfo}>
+          <Text style={styles.locationInfoText}>
+            Текущее местоположение: {userLocation.coords.latitude.toFixed(4)}, {userLocation.coords.longitude.toFixed(4)}
+          </Text>
+        </View>
+      )}
+
+      <TouchableOpacity
         style={styles.floatingButton}
         onPress={toggleMarkerList}
       >
@@ -97,7 +205,7 @@ export default function MapScreen() {
         <View style={styles.fullScreenModal}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Сохраненные маркеры ({markers.length})</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.closeButton}
               onPress={toggleMarkerList}
             >
@@ -115,6 +223,57 @@ export default function MapScreen() {
           />
         </View>
       </Modal>
+
+      <Modal
+        visible={showPermissionModal}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.permissionModal}>
+          <View style={styles.permissionContent}>
+            <Text style={styles.permissionTitle}>Добро пожаловать!</Text>
+            <Text style={styles.permissionText}>
+              Разрешите отправку уведомлений, чтобы получать оповещения, когда вы находитесь рядом с сохранёнными метками.
+            </Text>
+
+            <View style={styles.permissionButtons}>
+              <TouchableOpacity
+                style={[styles.permissionButton, styles.denyButton]}
+                onPress={() => {
+                  setShowPermissionModal(false);
+                  setNotificationPermission(false);
+                  Alert.alert(
+                    'Уведомления отключены',
+                  );
+                }}
+              >
+                <Text style={styles.denyButtonText}>Пропустить</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.permissionButton, styles.allowButton]}
+                onPress={async () => {
+                  try {
+                    await notificationManager.initialize();
+                    setNotificationPermission(true);
+                    setShowPermissionModal(false);
+                    Alert.alert('Успех', 'Теперь вы будете получать уведомления о близких метках!');
+                  } catch (error) {
+                    Alert.alert(
+                      'Ошибка',
+                      'Не удалось включить уведомления. Проверьте настройки устройства.'
+                    );
+                    setShowPermissionModal(false);
+                  }
+                }}
+              >
+                <Text style={styles.allowButtonText}>Разрешить уведомления</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -135,9 +294,39 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
-  floatingButton: {
+  locationError: {
     position: 'absolute',
     top: 50,
+    left: 16,
+    right: 16,
+    backgroundColor: '#FF3B30',
+    padding: 12,
+    borderRadius: 8,
+    zIndex: 1000,
+  },
+  locationErrorText: {
+    color: 'white',
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  locationInfo: {
+    position: 'absolute',
+    top: 50,
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 8,
+    borderRadius: 8,
+    zIndex: 1000,
+  },
+  locationInfoText: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#666',
+  },
+  floatingButton: {
+    position: 'absolute',
+    top: 100,
     right: 16,
     backgroundColor: '#007AFF',
     paddingHorizontal: 16,
@@ -201,5 +390,56 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+  },
+  permissionModal: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  permissionContent: {
+    backgroundColor: 'white',
+    margin: 20,
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  permissionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  permissionText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#666',
+  },
+  permissionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  permissionButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 5,
+  },
+  allowButton: {
+    backgroundColor: '#007AFF',
+  },
+  denyButton: {
+    backgroundColor: '#F2F2F7',
+  },
+  allowButtonText: {
+    color: 'white',
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  denyButtonText: {
+    color: '#666',
+    textAlign: 'center',
   },
 });
